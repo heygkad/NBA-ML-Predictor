@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NBA Win Probability</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body {
+        font-family: "Inter", sans-serif;
+        background: #0d1117;
+        color: white;
+        margin: 0;
+        padding: 20px;
+    }
+
+    h1 {
+        font-weight: 700;
+        font-size: 28px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    #loadBtn {
+        display: block;
+        margin: 0 auto 25px auto;
+        padding: 12px 24px;
+        font-size: 16px;
+        color: white;
+        background: #238636;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.25s;
+    }
+    #loadBtn:hover {
+        background: #2ea043;
+    }
+
+    .game-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        gap: 20px;
+        padding: 10px;
+    }
+
+    .game-card {
+        background: #161b22;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.4);
+        transition: 0.25s;
+    }
+
+    .team-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .team {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .team img {
+        width: 40px;
+    }
+
+    .team-name {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .prob-bar-bg {
+        width: 100%;
+        height: 10px;
+        margin-top: 8px;
+        background: #30363d;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .prob-bar {
+        height: 100%;
+        background: #2ea043;
+        width: 0%;
+        transition: width 1s ease;
+    }
+
+    .tiny {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-top: 5px;
+    }
+</style>
+
+</head>
+<body>
+
+<h1>Today's NBA Predictions</h1>
+
+<button id="loadBtn">Load Predictions</button>
+
+<div id="games" class="game-grid"></div>
+
+<script>
+const LOGOS = {
+    "ATL": "https://cdn.nba.com/logos/nba/1610612737/global/L/logo.svg",
+    "BOS": "https://cdn.nba.com/logos/nba/1610612738/global/L/logo.svg",
+    "BKN": "https://cdn.nba.com/logos/nba/1610612751/global/L/logo.svg",
+    "CHA": "https://cdn.nba.com/logos/nba/1610612766/global/L/logo.svg",
+    "CHI": "https://cdn.nba.com/logos/nba/1610612741/global/L/logo.svg",
+    "CLE": "https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg",
+    "DAL": "https://cdn.nba.com/logos/nba/1610612742/global/L/logo.svg",
+    "DEN": "https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg",
+    "DET": "https://cdn.nba.com/logos/nba/1610612765/global/L/logo.svg",
+    "GSW": "https://cdn.nba.com/logos/nba/1610612744/global/L/logo.svg",
+    "HOU": "https://cdn.nba.com/logos/nba/1610612745/global/L/logo.svg",
+    "IND": "https://cdn.nba.com/logos/nba/1610612754/global/L/logo.svg",
+    "LAC": "https://cdn.nba.com/logos/nba/1610612746/global/L/logo.svg",
+    "LAL": "https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg",
+    "MEM": "https://cdn.nba.com/logos/nba/1610612763/global/L/logo.svg",
+    "MIA": "https://cdn.nba.com/logos/nba/1610612748/global/L/logo.svg",
+    "MIL": "https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg",
+    "MIN": "https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg",
+    "NOP": "https://cdn.nba.com/logos/nba/1610612740/global/L/logo.svg",
+    "NYK": "https://cdn.nba.com/logos/nba/1610612752/global/L/logo.svg",
+    "OKC": "https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg",
+    "ORL": "https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg",
+    "PHI": "https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg",
+    "PHX": "https://cdn.nba.com/logos/nba/1610612756/global/L/logo.svg",
+    "POR": "https://cdn.nba.com/logos/nba/1610612757/global/L/logo.svg",
+    "SAC": "https://cdn.nba.com/logos/nba/1610612758/global/L/logo.svg",
+    "SAS": "https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg",
+    "TOR": "https://cdn.nba.com/logos/nba/1610612761/global/L/logo.svg",
+    "UTA": "https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg",
+    "WAS": "https://cdn.nba.com/logos/nba/1610612764/global/L/logo.svg"
+};
+
+async function loadPredictions() {
+    const container = document.getElementById("games");
+    container.innerHTML = "<p>Loading...</p>";
+
+    try {
+        const res = await fetch("http://127.0.0.1:5000/predictions/today");
+        const data = await res.json();
+
+        container.innerHTML = "";
+        data.games.forEach(game => {
+            const homeProb = (game.home_win_prob * 100).toFixed(1);
+            const awayProb = (game.away_win_prob * 100).toFixed(1);
+
+            const card = document.createElement("div");
+            card.className = "game-card";
+
+            card.innerHTML = `
+                <div class="team-row">
+                    <div class="team">
+                        <img src="${LOGOS[game.home_abbr] || ""}">
+                        <div class="team-name">${game.home_abbr}</div>
+                    </div>
+                    <div class="tiny">${homeProb}%</div>
+                </div>
+
+                <div class="prob-bar-bg">
+                    <div class="prob-bar" style="width:${homeProb}%"></div>
+                </div>
+
+                <div class="team-row" style="margin-top:18px;">
+                    <div class="team">
+                        <img src="${LOGOS[game.away_abbr] || ""}">
+                        <div class="team-name">${game.away_abbr}</div>
+                    </div>
+                    <div class="tiny">${awayProb}%</div>
+                </div>
+
+                <div class="prob-bar-bg">
+                    <div class="prob-bar" style="background:#da3633; width:${awayProb}%"></div>
+                </div>
+            `;
+
+            container.appendChild(card);
+        });
+
+    } catch (err) {
+        container.innerHTML = `<p style="color:red;">Error loading predictions.</p>`;
+        console.error(err);
+    }
+}
+
+document.getElementById("loadBtn").addEventListener("click", loadPredictions);
+</script>
+
+</body>
+</html>
